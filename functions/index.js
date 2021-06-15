@@ -6,6 +6,7 @@ const storage = admin.storage()
 
 // Paste your Last.fm key here
 const LASTFM_KEY = 'YOUR_LASTFM_KEY'
+const LASTFM_USERNAMES = ['YOUR_LASTFM_USERNAME']
 
 const writeJsonToStorage = async (name, data) => {
   const file = storage.bucket().file(`lastfm/${name}.json`)  
@@ -22,16 +23,25 @@ const getLastPlayed = async (user) => {
   return data
 }
 
-// For testing, uncomment this to fetch and write from an http callable function
-// exports.getLastPlayed = functions.https.onRequest(async (request, response) => {
-//   const user = 'YOUR_LASTFM_USERNAME'
-//   const played = await getLastPlayed(user)
-//   writeJsonToStorage(user, played)
-//   response.send(played)
-// })
+const writeAllUsers = async () => {
+  for (let x = 0; x < LASTFM_USERNAMES.length; x++) {
+    const user = LASTFM_USERNAMES[x]
+    const played = await getLastPlayed(user)
+    writeJsonToStorage(user, played)
+  }
+}
 
+// For testing, uncomment this to make an http callable function instead of a scheduled one.
+// Highly recommend not deploying this though, because if someone somehow found the URL,
+// and called it too much, you could rack up charges beyond Firebase's free limits ;)
+/* 
+exports.getLastPlayed = functions.https.onRequest(async (request, response) => {
+  await writeAllUsers()
+  response.send('done')
+})
+*/
+
+// Scheduled to run every 5 minutes
 exports.fetchLastPlayed = functions.pubsub.schedule('every 5 minutes').onRun(async (context) => {
-  const user = 'YOUR_LASTFM_USERNAME'
-  const played = await getLastPlayed(user)
-  writeJsonToStorage(user, played)
+  await writeAllUsers()
 })
